@@ -2,4 +2,4 @@ flask
 librosa
 numpy
 soundfile
-tensorflow
+tensorflow-cpu==2.15.0
