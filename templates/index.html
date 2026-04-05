@@ -197,6 +197,11 @@
   .theme-overripe .result-header { background: linear-gradient(135deg, #d84315, #b71c1c); }
   .error-msg { display: none; background: rgba(229,57,53,0.15); border: 1px solid rgba(229,57,53,0.4); border-radius: 14px; padding: 14px 16px; color: #ff8a80; font-size: 13px; text-align: center; }
   .error-msg.show { display: block; }
+  .feedback-section { background: #f0f4f0; padding: 16px 20px; }
+  .feedback-title { font-family: 'Kanit', sans-serif; font-size: 14px; color: #333; text-align: center; margin-bottom: 10px; }
+  .feedback-buttons { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .feedback-btn { padding: 8px 16px; border: none; border-radius: 50px; font-family: 'Kanit', sans-serif; font-size: 13px; cursor: pointer; transition: all 0.2s; }
+  .feedback-btn:hover { transform: translateY(-1px); opacity: 0.9; }
   .footer { text-align: center; padding: 16px; color: rgba(255,255,255,0.25); font-size: 11px; }
 </style>
 </head>
@@ -234,6 +239,15 @@
       <div class="advice-section">
         <div class="advice-title" id="adviceTitle">📋 คำแนะนำ</div>
         <div class="advice-grid" id="adviceGrid"></div>
+      </div>
+      <div class="feedback-section" id="feedbackSection">
+        <div class="feedback-title">ผลที่ได้ถูกต้องไหมครับ?</div>
+        <div class="feedback-buttons">
+          <button class="feedback-btn" style="background:#4caf50; color:white;" onclick="sendFeedback(lastPredicted)">✅ ถูกต้อง</button>
+          <button class="feedback-btn" style="background:#388e3c; color:white;" onclick="sendFeedback('กล่อง')">🟢 กล่อง (ดิบ)</button>
+          <button class="feedback-btn" style="background:#f9a825; color:white;" onclick="sendFeedback('ขวดน้ำ')">🟡 ขวดน้ำ (สุก)</button>
+          <button class="feedback-btn" style="background:#d84315; color:white;" onclick="sendFeedback('นิ้วชี้')">🔴 นิ้วชี้ (สุกมาก)</button>
+        </div>
       </div>
     </div>
   </div>
@@ -278,6 +292,8 @@ const ADVICE = {
 let mediaRecorder = null;
 let audioChunks = [];
 let isRecording = false;
+let lastAudioBlob = null;
+let lastPredicted = null;
 
 async function toggleRecord() {
   if (isRecording) { stopRecord(); } else { await startRecord(); }
@@ -316,6 +332,7 @@ function stopRecord() {
 
 async function sendAudio() {
   const blob = new Blob(audioChunks, { type: 'audio/webm' });
+  lastAudioBlob = blob;
   const formData = new FormData();
   formData.append('file', blob, 'audio.webm');
   document.getElementById('loading').classList.add('show');
@@ -337,6 +354,7 @@ async function sendAudio() {
 function showResult(data) {
   const cls = data.class;
   const conf = data.confidence;
+  lastPredicted = cls;
   const info = ADVICE[cls] || ADVICE['ขวดน้ำ'];
   const card = document.getElementById('resultCard');
   card.className = 'result-card show ' + info.theme;
@@ -356,30 +374,31 @@ function showResult(data) {
       </div>
     </div>
   `).join('');
+  // reset feedback section
+  document.getElementById('feedbackSection').innerHTML = `
+    <div class="feedback-title">ผลที่ได้ถูกต้องไหมครับ?</div>
+    <div class="feedback-buttons">
+      <button class="feedback-btn" style="background:#4caf50; color:white;" onclick="sendFeedback('${cls}')">✅ ถูกต้อง</button>
+      <button class="feedback-btn" style="background:#388e3c; color:white;" onclick="sendFeedback('กล่อง')">🟢 กล่อง (ดิบ)</button>
+      <button class="feedback-btn" style="background:#f9a825; color:white;" onclick="sendFeedback('ขวดน้ำ')">🟡 ขวดน้ำ (สุก)</button>
+      <button class="feedback-btn" style="background:#d84315; color:white;" onclick="sendFeedback('นิ้วชี้')">🔴 นิ้วชี้ (สุกมาก)</button>
+    </div>
+  `;
 }
 
-  // เก็บ audioBlob ไว้ใช้ส่ง feedback
-let lastAudioBlob = null;
-let lastPredicted = null;
-
-// แก้ใน sendAudio() เพิ่มบรรทัดนี้ก่อน fetch
-// lastAudioBlob = blob;
-
 async function sendFeedback(correctLabel) {
-    if (!lastAudioBlob) return;
-    
-    const formData = new FormData();
-    formData.append('file', lastAudioBlob, 'audio.webm');
-    formData.append('label', correctLabel);
-    formData.append('predicted', lastPredicted || '');
-    
-    try {
-        await fetch('/save_feedback', { method: 'POST', body: formData });
-        document.getElementById('feedbackSection').innerHTML = 
-            '<div style="text-align:center; color:#4caf50; padding:12px;">✅ ขอบคุณสำหรับ feedback ครับ!</div>';
-    } catch(e) {
-        console.error('Feedback error:', e);
-    }
+  if (!lastAudioBlob) return;
+  const formData = new FormData();
+  formData.append('file', lastAudioBlob, 'audio.webm');
+  formData.append('label', correctLabel);
+  formData.append('predicted', lastPredicted || '');
+  try {
+    await fetch('/save_feedback', { method: 'POST', body: formData });
+    document.getElementById('feedbackSection').innerHTML =
+      '<div style="text-align:center; color:#4caf50; padding:12px; font-family:Kanit,sans-serif;">✅ ขอบคุณสำหรับ feedback ครับ!</div>';
+  } catch(e) {
+    console.error('Feedback error:', e);
+  }
 }
 
 function showError(msg) {
