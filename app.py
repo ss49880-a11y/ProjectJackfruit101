@@ -9,6 +9,7 @@ from pydub import AudioSegment
 import io
 from supabase import create_client
 import uuid
+import requests as req
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
@@ -75,6 +76,8 @@ def predict():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+
 @app.route("/save_feedback", methods=["POST"])
 def save_feedback():
     if "file" not in request.files:
@@ -85,11 +88,14 @@ def save_feedback():
     audio_bytes = file.read()
     filename = f"{label}/{uuid.uuid4()}.webm"
     try:
-        supabase.storage.from_("audio-feedback").upload(
-            path=filename,
-            file=audio_bytes,
-            file_options={"content-type": "audio/webm"}
-        )
+        url = f"{SUPABASE_URL}/storage/v1/object/audio-feedback/{filename}"
+        headers = {
+            "Authorization": f"Bearer {SUPABASE_KEY}",
+            "Content-Type": "audio/webm"
+        }
+        res = req.post(url, data=audio_bytes, headers=headers)
+        if res.status_code not in [200, 201]:
+            return jsonify({"error": res.text}), 500
         supabase.table("feedback").insert({
             "audio_url": filename,
             "prediction": predicted,
@@ -98,6 +104,5 @@ def save_feedback():
         return jsonify({"success": True, "filename": filename})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
-
 if __name__ == "__main__":
     app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
