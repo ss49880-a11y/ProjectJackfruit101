@@ -89,10 +89,11 @@ def save_feedback():
     filename = f"{label}/{uuid.uuid4()}.webm"
     try:
         url = f"{SUPABASE_URL}/storage/v1/object/audio-feedback/{filename}"
-        headers = {
-            "Authorization": f"Bearer {SUPABASE_KEY}",
-            "Content-Type": "audio/webm"
-        }
+       headers = {
+    "Authorization": f"Bearer {SUPABASE_KEY}",
+    "apikey": SUPABASE_KEY,
+    "Content-Type": "audio/webm"
+}
         res = req.post(url, data=audio_bytes, headers=headers)
         if res.status_code not in [200, 201]:
             return jsonify({"error": res.text}), 500
