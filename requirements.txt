@@ -3,3 +3,7 @@ librosa
 numpy
 soundfile
 tensorflow-cpu==2.13.0
+gunicorn
+ffmpeg-python
+pydub
+supabase==1.2.0
